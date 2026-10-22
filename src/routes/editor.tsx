@@ -18,6 +18,7 @@ function PhotoEditor() {
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [guide, setGuide] = useState(false);
   const [width, height] = sizes[size];
 
   useEffect(() => {
@@ -84,35 +85,41 @@ function PhotoEditor() {
   }
 
   function slider(key: "zoom" | "x" | "y" | "brightness" | "contrast", label: string, min: number, max: number, step = 1) {
-    return <label className="block text-xs text-stone-600"><span className="mb-2 flex justify-between"><span>{label}</span><span className="tabular-nums">{key === "zoom" ? `${edit[key].toFixed(2)}×` : `${edit[key]}%`}</span></span><input className="w-full accent-teal-700" type="range" min={min} max={max} step={step} value={edit[key]} disabled={!photo || busy} onChange={(event) => setEdit((current) => ({ ...current, [key]: Number(event.target.value) }))} /></label>;
+    return <label className="edit-slider"><span><span>{label}</span><output>{key === "zoom" ? `${Math.round(edit[key] * 100)}%` : `${edit[key]}%`}</output></span><input aria-label={label} type="range" min={min} max={max} step={step} value={edit[key]} disabled={!photo || busy || loading} onChange={(event) => setEdit((current) => ({ ...current, [key]: Number(event.target.value) }))} /></label>;
   }
 
-  return <div className="min-h-screen bg-[#f4f5f2]">
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-white px-6 py-4">
-      <div className="flex items-center gap-4"><Link to="/" aria-label="Kembali ke awal" onClick={(event) => { if (photo && !window.confirm("Kembali ke awal? Foto dan pengaturan yang belum diekspor akan hilang.")) event.preventDefault(); }} className="text-stone-500">←</Link><div><h1 className="font-semibold">Editor pas foto</h1><p className="text-xs text-stone-400">Crop, sesuaikan, dan simpan.</p></div></div>
-      <button className="rounded-lg bg-teal-800 px-5 py-2.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40" disabled={!photo || busy || loading} onClick={() => void exportPhoto()}>{busy ? "Menyimpan…" : "Ekspor JPG"}</button>
+  return <div className="photo-editor">
+    <header className="editor-header">
+      <div className="editor-brand"><Link to="/" aria-label="Kembali ke awal" className="editor-back" onClick={(event) => { if (photo && !window.confirm("Kembali ke awal? Foto dan pengaturan yang belum diekspor akan hilang.")) event.preventDefault(); }}>←</Link><div><h1>Studio pas foto<span>MVP</span></h1><p>Foto siap cetak, dalam beberapa langkah.</p></div></div>
+      <button className="editor-save" disabled={!photo || busy || loading} onClick={() => void exportPhoto()}><span aria-hidden="true">↓</span>{busy ? "Menyimpan…" : "Simpan foto"}</button>
     </header>
+    <div className="editor-progress" aria-label="Langkah editing"><span className={photo ? "complete" : "current"}><b>{photo ? "✓" : "1"}</b> Buka foto</span><i /><span className={photo ? "current" : ""}><b>2</b> Sesuaikan</span><i /><span><b>3</b> Simpan JPG</span></div>
     <div className="editor-layout">
-      <main className="flex min-w-0 flex-col items-center justify-center gap-5 p-6 sm:p-10">
-        <div className="text-center"><p className="max-w-xs truncate text-sm text-stone-600">{name || "Foto Anda tampil di sini"}</p><p className="mt-1 text-xs text-stone-400">{size} cm · {width} × {height} px</p></div>
-        <div className="photo-stage" style={{ aspectRatio: `${width}/${height}` }}>
-          <canvas ref={canvas} width={width} height={height} className="block h-full w-full" aria-label={`Pratinjau pas foto ${size} cm`} />
-          {!photo && <button onClick={() => input.current?.click()} className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-5 text-center"><span className="grid h-12 w-12 place-items-center rounded-full bg-teal-50 text-2xl text-teal-700">+</span><span className="text-sm font-medium">Buka foto pertama</span><span className="text-xs text-stone-400">JPG, PNG, atau WebP</span></button>}
+      <main className="editor-workspace">
+        <div className="workspace-heading"><div><span className="workspace-eyebrow">PRATINJAU</span><h2>{photo ? "Pas foto Anda" : "Mulai dengan foto terbaik Anda"}</h2></div><span className="size-badge">{size} cm</span></div>
+        <div className={`editor-canvas-area ${photo ? "has-photo" : ""}`}>
+          <div className="photo-stage" style={{ aspectRatio: `${width}/${height}` }}>
+            <canvas ref={canvas} width={width} height={height} className="block h-full w-full" aria-label={`Pratinjau pas foto ${size} cm`} />
+            {!photo && <button disabled={busy || loading} onClick={() => input.current?.click()} className="photo-empty"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="9" cy="9" r="2"/><path d="m3 17 5-5 4 4 4-5 5 6"/></svg><strong>{loading ? "Membaca foto…" : "Pilih foto Anda"}</strong><span>Gunakan foto dengan wajah<br />menghadap ke depan.</span><em>＋ Buka foto</em><small>JPG, PNG, WebP · Maks. 20 MB</small></button>}
+            {photo && guide && <div className="photo-guide" aria-hidden="true"><span/><span/></div>}
+          </div>
+          {photo && <div className="canvas-tools"><button disabled={busy || loading} onClick={() => setEdit((current) => ({ ...current, rotation: (current.rotation + 90) % 360, x: 0, y: 0 }))}>↻ Putar 90°</button><span/><button aria-pressed={guide} onClick={() => setGuide(!guide)}>{guide ? "✓ " : ""}Garis bantu</button></div>}
         </div>
-        <p className="max-w-sm text-center text-xs leading-5 text-stone-400">Posisikan wajah di tengah dan sisakan ruang di atas kepala.</p>
+        <div className="workspace-caption"><span className="caption-dot"/><p>{photo ? "Sisakan ruang di atas kepala dan posisikan wajah di tengah." : "Foto diproses di perangkat Anda."}</p></div>
+        {photo && <p className="photo-filename" title={name}>{name}</p>}
       </main>
-      <aside className="border-l border-stone-200 bg-white p-6">
-        <h2 className="mb-5 text-sm font-semibold">Pengaturan foto</h2>
-        <button disabled={loading || busy} onClick={() => input.current?.click()} className="mb-6 w-full rounded-lg border border-stone-200 px-4 py-3 text-sm hover:bg-stone-50 disabled:opacity-40">{loading ? "Membaca foto…" : photo ? "Ganti foto" : "Buka foto"}</button>
+      <aside className="editor-inspector" aria-label="Pengaturan foto">
+        <div className="inspector-heading"><h2>Sesuaikan foto</h2><p>Perubahan langsung terlihat di pratinjau.</p></div>
+        <section className="inspector-section"><div className="section-label"><h3><span>01</span> Ukuran foto</h3><span>cm</span></div><fieldset disabled={busy || loading} aria-label="Ukuran pas foto" className="size-options">{(Object.keys(sizes) as Size[]).map((value) => <button key={value} aria-pressed={value === size} onClick={() => setSize(value)} className={value === size ? "selected" : ""}><span className="size-outline" style={{ aspectRatio: value === "3×4" ? "3/4" : "2/3" }}/><strong>{value}</strong><small>{value === size ? "Dipilih" : "Pilih ukuran"}</small></button>)}</fieldset></section>
+        <section className="inspector-section"><div className="section-label"><h3><span>02</span> Posisi & ukuran wajah</h3></div><div className="slider-group">{slider("zoom", "Perbesar foto", 1, 3, 0.01)}{slider("x", "Geser kiri / kanan", -100, 100)}{slider("y", "Geser atas / bawah", -100, 100)}</div><button disabled={!photo || busy || loading} className="center-photo" onClick={() => setEdit((current) => ({ ...current, x: 0, y: 0 }))}>⊙ Kembalikan ke tengah</button></section>
+        <details className="inspector-light"><summary><span><b>03</b> Cahaya & kontras</span><span className="details-chevron">⌄</span></summary><div className="slider-group">{slider("brightness", "Kecerahan", 50, 150)}{slider("contrast", "Kontras", 50, 150)}</div></details>
+        <div className="inspector-actions"><button disabled={loading || busy} onClick={() => input.current?.click()}>{loading ? "Membaca…" : photo ? "Ganti foto" : "Buka foto"}</button><button disabled={!photo || busy || loading} onClick={() => setEdit(initial)}>Reset edit</button></div>
         <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" aria-label="Pilih foto" className="hidden" onChange={(event) => { void openPhoto(event.target.files?.[0]); event.target.value = ""; }} />
-        <fieldset disabled={busy} className="mb-6"><legend className="mb-3 text-xs text-stone-500">Ukuran pas foto</legend><div className="flex gap-2">{(Object.keys(sizes) as Size[]).map((value) => <button key={value} aria-pressed={value === size} onClick={() => setSize(value)} className={`flex-1 rounded-lg border py-2 text-sm ${value === size ? "border-teal-700 bg-teal-50 text-teal-800" : "border-stone-200 text-stone-500"}`}>{value}</button>)}</div></fieldset>
-        <div className="space-y-5">{slider("zoom", "Zoom", 1, 3, 0.01)}{slider("x", "Posisi horizontal", -100, 100)}{slider("y", "Posisi vertikal", -100, 100)}</div>
-        <button disabled={!photo || busy} className="mt-5 w-full rounded-lg border border-stone-200 py-2 text-xs disabled:opacity-40" onClick={() => setEdit((current) => ({ ...current, rotation: (current.rotation + 90) % 360, x: 0, y: 0 }))}>↻ Putar 90°</button>
-        <details className="mt-6 border-t border-stone-100 pt-5"><summary className="cursor-pointer text-sm text-stone-600">Cahaya & kontras</summary><div className="mt-5 space-y-5">{slider("brightness", "Kecerahan", 50, 150)}{slider("contrast", "Kontras", 50, 150)}</div></details>
-        <button disabled={!photo || busy} onClick={() => setEdit(initial)} className="mt-6 text-xs text-stone-500 underline underline-offset-4 disabled:opacity-40">Reset pengaturan</button>
-        <p role="status" className="mt-5 break-words text-xs leading-5 text-teal-800">{status}</p>
-        <p className="mt-6 text-[11px] leading-5 text-stone-400">Resolusi disiapkan untuk 300 ppi. Pilih ukuran {size} cm saat mencetak. Latar asli foto tetap digunakan.</p>
+        {status && <p role="status" className="editor-status">{status}</p>}
+        <div className="export-note"><span aria-hidden="true">↙</span><div><strong>Hasil JPG · {size} cm</strong><p>{width} × {height} px. Atur ukuran {size} cm saat mencetak. Latar asli tetap digunakan.</p></div></div>
       </aside>
     </div>
   </div>;
 }
+
+
